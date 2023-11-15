@@ -1,5 +1,31 @@
 const Device = require("../models/device.model");
+const moment = require("moment");
 const common = require("../utils/common");
+
+exports.validate = async (req, res) => {
+  try {
+    var body = {
+      activateKey: req.body.activateKey,
+      serialNumber: req.body.serialNumber,
+    };
+
+    var device = await Device.findOne(body);
+
+    if (device)
+      res.status(200).json({
+        message: "Dispositivo encontrado",
+      });
+    else
+      res.status(403).json({
+        message: "Dispositivo não encontrado",
+      });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Internal error!",
+    });
+  }
+};
 
 exports.get = async (req, res) => {
   try {
@@ -16,7 +42,10 @@ exports.get = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    var body = req.body;
+    var body = {
+      activateKey: req.body.activateKey,
+      name: req.body.name,
+    };
 
     let hasCode = true;
 
@@ -39,7 +68,6 @@ exports.create = async (req, res) => {
       serialNumber: newDevice.serialNumber,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       message: "Internal error!",
     });
@@ -48,7 +76,7 @@ exports.create = async (req, res) => {
 
 exports.setActivationDate = async (req, res) => {
   try {
-    const date = req.body.date.map((date) => new Date(date));
+    const date = req.body.date.map((date) => moment(date).toDate());
 
     const device = await Device.findOne(req.session);
 
@@ -56,7 +84,7 @@ exports.setActivationDate = async (req, res) => {
 
     device.save();
 
-    res.status(200).json({});
+    res.status(200).json(date.map((date) => moment(date).toString()));
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -69,30 +97,13 @@ exports.isActive = async (req, res) => {
   try {
     const device = await Device.findOne(req.session);
 
-    device.lastRequest = new Date();
+    device.lastRequest = moment().toDate();
 
-      device.save();
+    const activation = device.isActive(moment().valueOf());
 
-    dateArray = device.activationDates;
-    const gap = 5 * 60 * 1000;
+    device.save();
 
-    const specificDate = new Date().getTime();
-    let minSpecificDate = specificDate - gap;
-    let maxSpecificDate = specificDate + gap;
-
-    for (let i = 0; i < dateArray.length; i++) {
-      let date = new Date(dateArray[i]).getTime();
-
-      if (
-        (minSpecificDate < date && maxSpecificDate > date) ||
-        (minSpecificDate == date && maxSpecificDate == date)
-      ) {
-        console.log("olas");
-        res.send("1");
-      }
-    }
-
-    res.send("0");
+    return res.send(activation ? "1" : "0");
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -105,7 +116,13 @@ exports.listActivationDate = async (req, res) => {
   try {
     const device = await Device.findOne(req.session);
 
-    res.status(200).json(device.activationDates);
+    res
+      .status(200)
+      .json(
+        device.activationDates.map((date) =>
+          moment(date).format("YYYY-MM-DD HH:mm:ss")
+        )
+      );
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -114,17 +131,57 @@ exports.listActivationDate = async (req, res) => {
   }
 };
 
-exports.lastRequest = async (req, res) => { 
-    try {
-        const device = await Device.findOne(req.session);
+exports.lastRequest = async (req, res) => {
+  try {
+    const device = await Device.findOne(req.session);
 
-      res
-        .status(200)
-        .json(common.calculateElapsedTime(device.lastRequest, req.query.date));
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({
-        message: "Internal error!",
-      });
-    }
+    var diffInMs = {
+      ...common.calculateElapsedTime(
+        moment(device.lastRequest).toDate(),
+        moment().toDate()
+      ),
+      date: moment(device.lastRequest).format("YYYY-MM-DD HH:mm:ss"),
+    };
+
+    res.status(200).json(diffInMs);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Internal error!",
+    });
+  }
+};
+
+exports.setFeedWeight = async (req, res) => {
+  try {
+    const device = await Device.findOne(req.session);
+
+    device.lastRequest = moment().toDate();
+
+    device.feedWeight = req.body.weight;
+
+    device.save();
+
+    res.status(200).send("1");
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Internal error!",
+    });
+  }
+};
+
+exports.getFeedWeight = async (req, res) => {
+  try {
+    const device = await Device.findOne(req.session);
+
+    res.status(200).json({
+      feedWeight: device.feedWeight,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Internal error!",
+    });
+  }
 };

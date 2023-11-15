@@ -12,24 +12,27 @@ exports.createCode = (length = 15) => {
 };
 
 exports.calculateElapsedTime = (date1, date2) => {
-  // Converta as horas fornecidas para o formato Date
-  const dataHora1 = new Date(date1);
-  const dataHora2 = new Date(date2);
+  // Calculate the difference in milliseconds
+  let diffInMs = date1 - date2;
 
-  console.log(dataHora1);
-  console.log(date2);
+  // Ensure a positive difference
+  diffInMs = diffInMs < 0 ? diffInMs * -1 : diffInMs;
 
-  // Calcule a diferença em milissegundos
-  const diferencaEmMilissegundos = dataHora2 - dataHora1;
-
-  // Converta a diferença para horas, minutos e segundos
-  const horas = Math.floor(diferencaEmMilissegundos / (1000 * 60 * 60));
-  const minutos = Math.floor(
-    (diferencaEmMilissegundos % (1000 * 60 * 60)) / (1000 * 60)
+  // Convert the difference to days, hours, minutes, and seconds
+  const days = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor(
+    (diffInMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
   );
+  const minutes = Math.floor((diffInMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diffInMs % (1000 * 60)) / 1000);
 
-  // Create an object to store the results
-  const response = { horas: horas, minutos: minutos };
+  return { days: days, hours: hours, minutes: minutes, seconds: seconds };
+};
 
-  return response;
+exports.convertTZ = (date) => {
+  return new Date(
+    (typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", {
+      timeZone: "America/Sao_Paulo",
+    })
+  );
 };
